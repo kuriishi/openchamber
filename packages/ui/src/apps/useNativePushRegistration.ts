@@ -53,6 +53,7 @@ declare global {
 
 interface PushKeyPlugin {
   get(): Promise<{ key: string }>;
+  messaging(): Promise<{ available: boolean }>;
 }
 
 const PushKey = registerPlugin<PushKeyPlugin>('PushKey');
@@ -65,6 +66,14 @@ const getPushKey = async (): Promise<string | undefined> => {
   const key = await PushKey.get().then((result) => result.key).catch(() => undefined);
   return key && PUSH_KEY_PATTERN.test(key) ? key : undefined;
 };
+
+/**
+ * False on an Android build without Firebase (no google-services.json), where
+ * register() crashes the app natively. iOS and older shells lack the method;
+ * the rejection keeps their registration.
+ */
+const isPushMessagingAvailable = (): Promise<boolean> =>
+  PushKey.messaging().then(({ available }) => available, () => true);
 
 const isNativePushPlatform = (): boolean => {
   if (typeof window === 'undefined') return false;
@@ -89,6 +98,7 @@ export const useNativePushRegistration = (options: { enabled: boolean }): void =
     void import('@capacitor/push-notifications')
       .then(async ({ PushNotifications }) => {
         if (disposed) return;
+        if (!(await isPushMessagingAvailable()) || disposed) return;
 
         let permission = await PushNotifications.checkPermissions().catch(() => null);
         if (permission?.receive !== 'granted') {
