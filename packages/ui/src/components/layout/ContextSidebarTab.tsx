@@ -25,6 +25,7 @@ import { ContextPanelHeaderToolbar } from './contextPanelHeaderSlot';
 import { useInContextPanelHeader } from './contextPanelHeaderSlotContext';
 import { toolContentShellChars } from '@/lib/opencode/toolContentShells';
 import { composeContextBreakdown, type ContextBuckets } from './contextBreakdown';
+import { SessionPluginPanels } from './SessionPluginPanels';
 
 type SessionMessage = { info: Message; parts: Part[] };
 
@@ -276,6 +277,16 @@ export const ContextPanelContent: React.FC = () => {
     currentSessionDirectory ?? undefined,
   );
   const providers = useConfigStore((state) => state.providers);
+  const currentProviderId = useConfigStore((state) => state.currentProviderId);
+  const currentModelId = useConfigStore((state) => state.currentModelId);
+  const pluginPanelSession = React.useMemo(
+    () => (currentSessionId ? sessions.find((session) => session.id === currentSessionId) ?? null : null),
+    [currentSessionId, sessions],
+  );
+  const pluginPanelModel = React.useMemo(
+    () => (currentProviderId && currentModelId ? { providerID: currentProviderId, modelID: currentModelId } : null),
+    [currentModelId, currentProviderId],
+  );
 
   React.useEffect(() => {
     if (copyResetTimeoutRef.current !== null) {
@@ -515,6 +526,9 @@ export const ContextPanelContent: React.FC = () => {
             ))}
           </div>
         </div>
+
+        {/* ── Plugin panels ── */}
+        <SessionPluginPanels session={pluginPanelSession} model={pluginPanelModel} className="mb-5" />
 
         {/* ── Context breakdown ── */}
         <div className="mb-6">

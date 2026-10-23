@@ -14,7 +14,10 @@ import { useConfigStore } from '@/stores/useConfigStore';
 import { useQuotaAutoRefresh, useQuotaStore } from '@/stores/useQuotaStore';
 import { useUIStore, type TimeFormatPreference } from '@/stores/useUIStore';
 import { useSelectionStore } from '@/sync/selection-store';
-import { useSessionMessages } from '@/sync/sync-context';
+import { useSession, useSessionMessages } from '@/sync/sync-context';
+import { SessionPluginPanels } from '@/components/layout/SessionPluginPanels';
+import type { Session } from '@/lib/opencode/model';
+import type { PluginPanelModel } from '@/lib/opencode/plugin-panels';
 
 const TABLET_METADATA_POPOVER_WIDTH = 380;
 
@@ -115,7 +118,9 @@ const SessionMetadataOverlay: React.FC<{
   usageDisplayMode: 'usage' | 'remaining';
   isUsageLoading: boolean;
   timeFormatPreference: TimeFormatPreference;
-}> = ({ open, onClose, anchorRef, contextDisplay, usageGroups, usageDisplayMode, isUsageLoading, timeFormatPreference }) => {
+  session: Session | null;
+  pluginPanelModel: PluginPanelModel | null;
+}> = ({ open, onClose, anchorRef, contextDisplay, usageGroups, usageDisplayMode, isUsageLoading, timeFormatPreference, session, pluginPanelModel }) => {
   const { t } = useI18n();
   const panelRef = React.useRef<HTMLDivElement>(null);
   const [shouldRender, setShouldRender] = React.useState(open);
@@ -253,6 +258,7 @@ const SessionMetadataOverlay: React.FC<{
           {contextDisplay?.state === 'pending' ? (
             <p className="px-2.5 pb-1 typography-meta text-muted-foreground">{t('mobile.header.metadata.contextPending')}</p>
           ) : null}
+          <SessionPluginPanels session={session} model={pluginPanelModel} className="pt-1" />
           <MobileUsageLimits
             groups={usageGroups}
             displayMode={usageDisplayMode}
@@ -429,6 +435,15 @@ export const MobileSessionMetadataButton = React.memo(function MobileSessionMeta
 
   const usageGroups = useUsageProviderGroups();
 
+  const session = useSession(isNewSessionDraftOpen ? null : currentSessionId, effectiveDirectory || undefined) ?? null;
+  // Price quotes follow the composer's model for this session, as in the TUI.
+  const selectedProviderId = savedSessionModel?.providerId ?? currentProviderId;
+  const selectedModelId = savedSessionModel?.modelId ?? currentModelId;
+  const pluginPanelModel = React.useMemo(
+    () => (selectedProviderId && selectedModelId ? { providerID: selectedProviderId, modelID: selectedModelId } : null),
+    [selectedModelId, selectedProviderId],
+  );
+
   React.useEffect(() => {
     if (!open || usageGroups.length === 0) return;
     preloadProviderLogos(usageGroups.map((group) => group.providerId));
@@ -462,6 +477,8 @@ export const MobileSessionMetadataButton = React.memo(function MobileSessionMeta
         usageDisplayMode={quotaDisplayMode}
         isUsageLoading={isQuotaLoading}
         timeFormatPreference={timeFormatPreference}
+        session={session}
+        pluginPanelModel={pluginPanelModel}
       />
     </>
   );
